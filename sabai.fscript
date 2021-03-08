@@ -1,0 +1,9 @@
+open "https://www.sabaicards.com/cards/?disp=all&name=$INPUT"
+
+item "#card-gallery-container .galley_view_container"
+  .name textOf ".card-name"
+  .link hrefOf ".card-name a"
+  .set textOf ".card-set-code"
+  .price numbersOf ".card-text-price"
+  .quantity maxOf numbersOf allOf ".cart-quantity-content button"
+enditem
