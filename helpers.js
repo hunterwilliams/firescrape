@@ -25,6 +25,36 @@ function retrieveItem(arrayOfItems, itemDef) {
           newError = e.toString();
         }
       }
+    } else if (currentCommand === "valueOf") {
+      if (currentValue) {
+        newValue = "" + currentValue;
+      }
+      if (!currentValue) {
+        try {
+          newValue = element.querySelector(path).value.trim();
+        } catch (e) {
+          newValue = "";
+          newError = e.toString();
+        }
+      }
+    } else if (currentCommand === "textNodeOf") {
+      if (currentValue) {
+        newValue = "" + currentValue;
+      }
+      if (!currentValue) {
+        try {
+          let parentNode = element.querySelector(path);
+          for (let i = 0; i < parentNode.childNodes.length; i++) {
+            if (parentNode.childNodes[i].nodeType === 3) {
+              newValue =  parentNode.childNodes[i].textContent.trim();
+            }
+          }
+          newError = "Could not find textnode";
+        } catch (e) {
+          newValue = "";
+          newError = e.toString();
+        }
+      }
     } else if (currentCommand === "hrefOf") {
       if (currentValue) {
         newError = "Cannot get hrefOf existing values..."
@@ -75,6 +105,8 @@ function retrieveItem(arrayOfItems, itemDef) {
         newError = e.toString();
         return {value: currentValue, error: "fail in AllOf"};
       }
+    } else {
+      return {value: "", error: "unknown command: " + currentCommand};
     }
 
     if (remainingCommands.length > 1) {
@@ -107,6 +139,13 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
   const remaining = command;
 
   if (theCommand.startsWith('"') || theCommand.endsWith('"') || inString) {
+    if (theCommand === "$INPUT" && !inString){
+      if (remaining.length > 0) {
+        const nextString = await handleCommand(page, remaining, input, inItem, itemDef, false);
+        return [input].concat(nextString);
+      }
+      return [input];
+    }
     let text = theCommand.replace("$INPUT", input);
     let stillInString = inString;
     if (text.startsWith('"') && !stillInString) {
@@ -116,15 +155,21 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     if (text.endsWith('"') && stillInString) {
       stillInString = false;
       text = text.substr(0,text.length-1);
+      if (remaining.length === 0) {
+        return [text];
+      } else {
+        const nextString = await handleCommand(page, remaining, input, inItem, itemDef, false);
+        return [text].concat(nextString);
+      }
     }
     if (remaining.length === 0) {
       return text;
     }
     const subtext = await handleCommand(page, remaining, input, inItem, itemDef, stillInString);
-    return text + " " + subtext;
+    return [text + " " + subtext[0]];
   }
 
-  if (["allOf", "maxOf", "numbersOf","hrefOf", "textOf"].indexOf(theCommand) !== -1) {
+  if (["allOf", "maxOf", "numbersOf","hrefOf", "textOf", "textNodeOf", "valueOf"].indexOf(theCommand) !== -1) {
     if (remaining.length == 0) {
       return {subcommand: [theCommand], path: ""};
     }
@@ -135,8 +180,8 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     if (other && other.subcommand) {
       path = other.path;
       subcommandArray = other.subcommand;
-    } else {
-      path = other;
+    } else if (other && other[0] !== ""){
+      path = other[0];
     }
     subcommandArray.push(theCommand);
 
@@ -147,18 +192,41 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     const otherParts = await handleCommand(page, remaining, input, inItem, itemDef);
     return {property: theCommand.substr(1, theCommand.length - 1), ...otherParts};
   }
+
+  if (theCommand === "type") {
+    const params = await handleCommand(page, remaining, input, inItem, itemDef);
+    if (params.length !== 2) {
+      throw new Error("type command Expected 2 params");
+    }
+    await page.type(params[1], params[0]);
+    return undefined;
+  }
+
+  if (theCommand === "click") {
+    if (remaining.length <= 0) {
+      throw new Error("Click command needs arguments");
+    }
+    const path = await handleCommand(page, remaining, input, inItem, itemDef);
+    await page.click(path[0]);
+    return undefined;
+  }
+
+  if (theCommand === "waitForNavigation") {
+    await page.waitForNavigation();
+    return undefined;
+  }
   
   if (theCommand === "open") {
     if (remaining.length <= 0) {
       throw new Error("Open command needs arguments");
     }
     const url = await handleCommand(page, remaining, input, inItem, itemDef);
-    await page.goto(url);
+    await page.goto(url[0]);
     return undefined;
   }
   if (theCommand === "item") {
     const path = await handleCommand(page, remaining, input, inItem, itemDef);
-    return {path, itemstart:true};
+    return {path: path[0], itemstart:true};
   }
   if (theCommand === "enditem") {
     if (itemDef === {}) {
@@ -168,6 +236,7 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     const items = await page.$$eval(itemDef.path, retrieveItem, itemDef);
     return {items};
   }
+  throw new Error("Unsupported command: " + theCommand);
 
 }
 
