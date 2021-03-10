@@ -82,7 +82,19 @@ function retrieveItem(arrayOfItems, itemDef) {
           newError = e.toString();
         }
       }
-    } else if (currentCommand === "maxOf") {
+    } else if (currentCommand === "hasTwoDecimals") {
+      
+      if (!currentValue) {
+        newError = "expecting some input value";
+      } else {
+        try {
+          newValue = currentValue / 100.0;
+        } catch (e) {
+          newValue = 0;
+          newError = e.toString();
+        }
+      }
+    }else if (currentCommand === "maxOf") {
       if (Array.isArray(currentValue) === false) {
         newError = "must have array of items to get maxOf - current value:" + JSON.stringify(currentValue);
       } else {
@@ -169,7 +181,7 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     return [text + " " + subtext[0]];
   }
 
-  if (["allOf", "maxOf", "numbersOf","hrefOf", "textOf", "textNodeOf", "valueOf"].indexOf(theCommand) !== -1) {
+  if (["allOf", "maxOf", "numbersOf","hasTwoDecimals", "hrefOf", "textOf", "textNodeOf", "valueOf"].indexOf(theCommand) !== -1) {
     if (remaining.length == 0) {
       return {subcommand: [theCommand], path: ""};
     }

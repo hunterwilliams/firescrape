@@ -17,6 +17,7 @@ Subcommands
 * numbersOf                   | gets number value of an element (removes non digits) OR changes anything into numbers if possible
 * textOf                      | gets trimmed text value of an element  OR changes anything into text if possible
 * textNodeOf                  | gets trimmed text of a text node only; useful for elements not directly surrounded by an element
+* twoDecimalsOf               | used to get decimals back (divides by 100); useful for pricing
 * valueOf                     | gets the value of something; useful for select
 
 
