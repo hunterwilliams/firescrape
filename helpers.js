@@ -248,6 +248,7 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
       throw new Error("expecting item definition");
     }
     debug("attempting to retieve items with def: " + JSON.stringify(itemDef));
+    await page.waitForSelector(itemDef.path);
     const items = await page.$$eval(itemDef.path, retrieveItem, itemDef);
     return {items};
   }
