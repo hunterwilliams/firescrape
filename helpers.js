@@ -1,7 +1,10 @@
 const fs = require('fs');
+let printDebug = false;
 
 function debug(str) {
-  console.log("DEBUG: " + str);
+  if (printDebug) {
+    console.log("DEBUG: " + str);
+  }
 }
 
 function retrieveItem(arrayOfItems, itemDef) {
@@ -252,7 +255,8 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
 
 }
 
-function fscriptify(scriptFilePath) {
+function fscriptify(scriptFilePath, shouldDebug=false) {
+  printDebug = shouldDebug;
   return async function(page, input) {
     const rawFile = fs.readFileSync(scriptFilePath);
     const lines = rawFile.toString().split('\n').filter(x => x !== "");
@@ -277,7 +281,6 @@ function fscriptify(scriptFilePath) {
         inItem = false;
       }
     }
-    console.log("items:" + JSON.stringify(items));
     return items;
   };
 
