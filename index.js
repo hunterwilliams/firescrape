@@ -21,7 +21,7 @@ const shouldDebug = process.argv.length >= 5 ? process.argv[4] === "--debug" : f
     path: "./screenshot.jpg",
     type: "jpeg",
     fullPage: true
-  });3
+  });
 
   await browser.close();
 
