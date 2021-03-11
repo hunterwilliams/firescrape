@@ -33,3 +33,15 @@ item ".product"
   .quantity numbersOf valueOf ".card-form select"
 enditem
 ```
+
+
+
+TODO:
+
+* Support nextpage for going through pages of results - needs to support clicking (maybe more?)
+* Taking input from a file
+* Some sort of filtering / comparison / unique (maybe similar to SQL)
+* Handling browser crashes / fails to initialize
+* attribute("X") or titleOf
+* calling other script from file OR nesting
+* some sort of transformation eg for price and for partial links (partial links should be extract?? as this seems obvious issue)
