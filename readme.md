@@ -17,6 +17,7 @@ Subcommands
 * numbersOf                   | gets number value of an element (removes non digits) OR changes anything into numbers if possible
 * textOf                      | gets trimmed text value of an element  OR changes anything into text if possible
 * textNodeOf                  | gets trimmed text of a text node only; useful for elements not directly surrounded by an element
+* titleOf                     | gets title attribute of an element
 * twoDecimalsOf               | used to get decimals back (divides by 100); useful for pricing
 * valueOf                     | gets the value of something; useful for select
 
@@ -42,6 +43,6 @@ TODO:
 * Taking input from a file
 * Some sort of filtering / comparison / unique (maybe similar to SQL)
 * Handling browser crashes / fails to initialize
-* attribute("X") or titleOf
+* attribute("X")
 * calling other script from file OR nesting
 * some sort of transformation eg for price and for partial links (partial links should be extract?? as this seems obvious issue)

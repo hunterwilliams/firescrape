@@ -69,6 +69,17 @@ function retrieveItem(arrayOfItems, itemDef) {
           newError = e.toString();
         }
       }
+    } else if (currentCommand === "titleOf") {
+      if (currentValue) {
+        newError = "Cannot get titleOf existing values..."
+      } else {
+        try {
+          newValue = element.querySelector(path).getAttribute("title");
+        } catch (e) {
+          newValue = "";
+          newError = e.toString();
+        }
+      }
     } else if (currentCommand === "numbersOf") {
       
       if (currentValue) {
@@ -184,7 +195,7 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     return [text + " " + subtext[0]];
   }
 
-  if (["allOf", "maxOf", "numbersOf","hasTwoDecimals", "hrefOf", "textOf", "textNodeOf", "valueOf"].indexOf(theCommand) !== -1) {
+  if (["allOf", "maxOf", "numbersOf","hasTwoDecimals", "hrefOf", "textOf", "textNodeOf", "titleOf", "valueOf"].indexOf(theCommand) !== -1) {
     if (remaining.length == 0) {
       return {subcommand: [theCommand], path: ""};
     }
