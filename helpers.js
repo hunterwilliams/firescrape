@@ -159,10 +159,11 @@ function retrieveItem(arrayOfItems, itemDef) {
   });
 }
 
-async function handleCommand(page, command, input, inItem=false, itemDef={}, inString=false) {
+async function handleCommand(page, command, input, inItem=false, itemDef={}, inString=false, results=[]) {
   const theCommand = command[0];
   command.splice(0, 1);
   const remaining = command;
+  debug("c: "+theCommand);
 
   if (theCommand.startsWith('"') || theCommand.endsWith('"') || inString) {
     if (theCommand === "$INPUT" && !inString){
@@ -195,6 +196,7 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     return [text + " " + subtext[0]];
   }
 
+  // maybe nee to filter by initem
   if (["allOf", "maxOf", "numbersOf","hasTwoDecimals", "hrefOf", "textOf", "textNodeOf", "titleOf", "valueOf"].indexOf(theCommand) !== -1) {
     if (remaining.length == 0) {
       return {subcommand: [theCommand], path: ""};
@@ -263,6 +265,44 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     const items = await page.$$eval(itemDef.path, retrieveItem, itemDef);
     return {items};
   }
+  if (theCommand === "distinct") {
+    const path = await handleCommand(page, remaining, input, inItem, itemDef, inString, results);
+
+    function onlyUnique(value, index, self) {
+      return self.indexOf(value) === index;
+    }
+    let uniqueValues = results.map(x => {
+      try {
+        return x.value[path[0]];
+      } catch (e) {
+        debug("had an issue getting distinct values: ", e);
+        return "";
+      }
+      
+    }).filter(onlyUnique);
+    const returnResults = [];
+    for (let i = 0; i < results.length; i += 1){
+      const checkProperty = results[i].value[path[0]];
+      let index = uniqueValues.indexOf(checkProperty);
+      if (index > -1) {
+        returnResults.push(results[i]);
+        uniqueValues.splice(index, 1);
+        if (uniqueValues.length === 0){
+          break;
+        }
+      }
+    }
+
+    return {results: returnResults};
+  }
+  if (theCommand === "script") {
+    debug("script>>>>>>>")
+    const path = await handleCommand(page, remaining, input);
+    const otherScript = fscriptify(path[0], printDebug);
+    const otherScriptResults = await otherScript(page, path[1]);
+    debug("other script results");
+    return {results: otherScriptResults};
+  }
   throw new Error("Unsupported command: " + theCommand);
 
 }
@@ -276,9 +316,14 @@ function fscriptify(scriptFilePath, shouldDebug=false) {
     let items = [];
     let inItem = false;
     let itemDef = {};
+    let results = [];
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].replace(/\s\s+/g, ' ').trim().split(" ");
-      const result = await handleCommand(page, line, input, inItem, itemDef);
+      const result = await handleCommand(page, line, input, inItem, itemDef, false, results);
+      if (result && result.results) {
+        results = result.results;
+        debug("setting results");
+      }
       if (result && result.itemstart) {
         itemDef.path = result.path;
         itemDef.props = [];
@@ -292,6 +337,10 @@ function fscriptify(scriptFilePath, shouldDebug=false) {
         itemDef = {};
         inItem = false;
       }
+    }
+    if (items.length === 0)
+    {
+      return results;
     }
     return items;
   };
