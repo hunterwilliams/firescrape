@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/hunterwilliams/firescrape#readme",
   "dependencies": {
+    "js-yaml": "^4.0.0",
     "puppeteer": "^8.0.0"
   }
 }

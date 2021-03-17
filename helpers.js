@@ -1,4 +1,6 @@
-const fs = require('fs');
+const yaml = require('js-yaml');
+const fs   = require('fs');
+
 let printDebug = false;
 
 function debug(str) {
@@ -8,7 +10,6 @@ function debug(str) {
 }
 
 function retrieveItem(arrayOfItems, itemDef) {
-
   function handleSubcommand(element, path, remainingCommands, currentValue) {
 
     const currentCommand = remainingCommands[0];
@@ -159,83 +160,34 @@ function retrieveItem(arrayOfItems, itemDef) {
   });
 }
 
-async function handleCommand(page, command, input, inItem=false, itemDef={}, inString=false, results=[]) {
-  const theCommand = command[0];
-  command.splice(0, 1);
-  const remaining = command;
+async function handleCommand(page, command, input, results=[]) {
+  const theCommand = Object.keys(command)[0];
+  let theValue = command[theCommand];
   debug("c: "+theCommand);
 
-  if (theCommand.startsWith('"') || theCommand.endsWith('"') || inString) {
-    if (theCommand === "$INPUT" && !inString){
-      if (remaining.length > 0) {
-        const nextString = await handleCommand(page, remaining, input, inItem, itemDef, false);
-        return [input].concat(nextString);
-      }
-      return [input];
+  function getArgs(value, numberRequired){
+    let values = value.replace("$INPUT", input).split('"').filter(x => x !== "");
+  
+    if (values.length < numberRequired) {
+      throw new Error(`Could not find ${numberRequired} params`);
     }
-    let text = theCommand.replace("$INPUT", input);
-    let stillInString = inString;
-    if (text.startsWith('"') && !stillInString) {
-      stillInString = true;
-      text = text.substr(1,text.length-1);
-    }
-    if (text.endsWith('"') && stillInString) {
-      stillInString = false;
-      text = text.substr(0,text.length-1);
-      if (remaining.length === 0) {
-        return [text];
-      } else {
-        const nextString = await handleCommand(page, remaining, input, inItem, itemDef, false);
-        return [text].concat(nextString);
-      }
-    }
-    if (remaining.length === 0) {
-      return text;
-    }
-    const subtext = await handleCommand(page, remaining, input, inItem, itemDef, stillInString);
-    return [text + " " + subtext[0]];
-  }
-
-  // maybe nee to filter by initem
-  if (["allOf", "maxOf", "numbersOf","hasTwoDecimals", "hrefOf", "textOf", "textNodeOf", "titleOf", "valueOf"].indexOf(theCommand) !== -1) {
-    if (remaining.length == 0) {
-      return {subcommand: [theCommand], path: ""};
-    }
-    const other = await handleCommand(page, remaining, input, inItem, itemDef);
-
-    let path = "";
-    let subcommandArray = [];
-    if (other && other.subcommand) {
-      path = other.path;
-      subcommandArray = other.subcommand;
-    } else if (other && other[0] !== ""){
-      path = other[0];
-    }
-    subcommandArray.push(theCommand);
-
-    return {subcommand: subcommandArray, path};
-  }
-
-  if (theCommand[0] === "." && inItem) {
-    const otherParts = await handleCommand(page, remaining, input, inItem, itemDef);
-    return {property: theCommand.substr(1, theCommand.length - 1), ...otherParts};
+    return values;
   }
 
   if (theCommand === "type") {
-    const params = await handleCommand(page, remaining, input, inItem, itemDef);
-    if (params.length !== 2) {
-      throw new Error("type command Expected 2 params");
+    if (!theValue.path || !theValue.value) {
+      throw new Error("Expecting path and value for command type");
     }
-    await page.type(params[1], params[0]);
+    await page.type(
+      getArgs(theValue.path, 1)[0], 
+      getArgs(theValue.value, 1)[0]
+    );
     return undefined;
   }
 
   if (theCommand === "click") {
-    if (remaining.length <= 0) {
-      throw new Error("Click command needs arguments");
-    }
-    const path = await handleCommand(page, remaining, input, inItem, itemDef);
-    await page.click(path[0]);
+    const params = getArgs(theValue, 1);
+    await page.click(params[0]);
     return undefined;
   }
 
@@ -245,35 +197,39 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
   }
   
   if (theCommand === "open") {
-    if (remaining.length <= 0) {
-      throw new Error("Open command needs arguments");
-    }
-    const url = await handleCommand(page, remaining, input, inItem, itemDef);
-    await page.goto(url[0]);
+    const params = getArgs(theValue, 1);
+    await page.goto(params[0]);
     return undefined;
   }
+
   if (theCommand === "item") {
-    const path = await handleCommand(page, remaining, input, inItem, itemDef);
-    return {path: path[0], itemstart:true};
-  }
-  if (theCommand === "enditem") {
-    if (itemDef === {}) {
-      throw new Error("expecting item definition");
+    const path = theValue.path || "";
+    const potentialProps = theValue.properties;
+    const props = [];
+    for (let i = 0; i < potentialProps.length; i++) {
+      const propName = Object.keys(potentialProps[i])[0];
+      const params = getArgs(potentialProps[i][propName]);
+      props.push({
+        property: propName,
+        subcommand: params[0].trim().split(" ").reverse(),
+        path: params[1],
+      });
     }
+    let itemDef = {path, props};
     debug("attempting to retieve items with def: " + JSON.stringify(itemDef));
-    await page.waitForSelector(itemDef.path);
+    await page.waitForSelector(path);
     const items = await page.$$eval(itemDef.path, retrieveItem, itemDef);
     return {items};
   }
   if (theCommand === "distinct") {
-    const path = await handleCommand(page, remaining, input, inItem, itemDef, inString, results);
+    const params = getArgs(theValue, 1);
 
     function onlyUnique(value, index, self) {
       return self.indexOf(value) === index;
     }
     let uniqueValues = results.map(x => {
       try {
-        return x.value[path[0]];
+        return x.value[params[0]];
       } catch (e) {
         debug("had an issue getting distinct values: ", e);
         return "";
@@ -282,7 +238,7 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
     }).filter(onlyUnique);
     const returnResults = [];
     for (let i = 0; i < results.length; i += 1){
-      const checkProperty = results[i].value[path[0]];
+      const checkProperty = results[i].value[params[0]];
       let index = uniqueValues.indexOf(checkProperty);
       if (index > -1) {
         returnResults.push(results[i]);
@@ -297,9 +253,9 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
   }
   if (theCommand === "script") {
     debug("script>>>>>>>")
-    const path = await handleCommand(page, remaining, input);
-    const otherScript = fscriptify(path[0], printDebug);
-    const otherScriptResults = await otherScript(page, path[1]);
+    const params = getArgs(theValue, 1);
+    const otherScript = fscriptify(params[0], printDebug);
+    const otherScriptResults = await otherScript(page, path[1] || "");
     debug("other script results");
     return {results: otherScriptResults};
   }
@@ -310,33 +266,26 @@ async function handleCommand(page, command, input, inItem=false, itemDef={}, inS
 function fscriptify(scriptFilePath, shouldDebug=false) {
   printDebug = shouldDebug;
   return async function(page, input) {
-    const rawFile = fs.readFileSync(scriptFilePath);
-    const lines = rawFile.toString().split('\n').filter(x => x !== "");
+    const doc = yaml.load(fs.readFileSync(scriptFilePath, 'utf8'));
 
     let items = [];
-    let inItem = false;
-    let itemDef = {};
     let results = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].replace(/\s\s+/g, ' ').trim().split(" ");
-      const result = await handleCommand(page, line, input, inItem, itemDef, false, results);
-      if (result && result.results) {
-        results = result.results;
-        debug("setting results");
+    for (let i = 0; i < doc.script.steps.length; i++) {
+      const step = doc.script.steps[i];
+      try {
+        const result = await handleCommand(page, step, input, results);
+        if (result && result.results) {
+          results = result.results;
+          debug("setting results");
+        }
+        if (result && result.items) {
+          items = items.concat(result.items);
+        }
+      } catch (e) {
+        console.log(step);
+        console.log(e);
       }
-      if (result && result.itemstart) {
-        itemDef.path = result.path;
-        itemDef.props = [];
-        inItem = true;
-      }
-      if (result && result.property && inItem) {
-        itemDef.props.push(result);
-      }
-      if (result && result.items) {
-        items = items.concat(result.items);
-        itemDef = {};
-        inItem = false;
-      }
+      
     }
     if (items.length === 0)
     {
