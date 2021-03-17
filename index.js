@@ -1,12 +1,12 @@
 const puppeteer = require('puppeteer');
 const helpers = require('./helpers');
 
-if (process.argv.length < 4) {
-  throw new Error('Expected 2 arguments: script.fscript "input"');
+if (process.argv.length < 3) {
+  throw new Error('Expected at least 1 arguments: script.fscript "input"');
 }
 const fileToRun = process.argv[2];
-const input = process.argv[3];
-const shouldDebug = process.argv.length >= 5 ? process.argv[4] === "--debug" : false;
+const input = process.argv[3] || "";
+const shouldDebug = process.argv[process.argv.length - 1] === "--debug";
 
 (async () => {
 
