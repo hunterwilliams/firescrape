@@ -204,7 +204,13 @@ async function handleCommand(page, command, input, results=[]) {
     await page.waitForNavigation();
     return undefined;
   }
-  
+
+  if (theCommand === "waitForSelector") {
+    const params = getArgs(theValue, 1);
+    await page.waitForSelector(params[0]);
+    return undefined;
+  }
+
   if (theCommand === "viewport") {
     await page.setViewport({ width: theValue.width, height: theValue.height });
     return undefined;
