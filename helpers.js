@@ -191,6 +191,15 @@ async function handleCommand(page, command, input, results=[]) {
     return undefined;
   }
 
+  if (theCommand === "screenshot") {
+    await page.screenshot({
+      path: theValue.path || "./screenshot.jpg",
+      type: "jpeg",
+      fullPage: false
+    });
+    return undefined;
+  }
+
   if (theCommand === "waitForNavigation") {
     await page.waitForNavigation();
     return undefined;
