@@ -160,7 +160,7 @@ function retrieveItem(arrayOfItems, itemDef) {
   });
 }
 
-async function handleCommand(page, command, input, results=[]) {
+async function handleCommand(page, command, input, results=[], waitingForChange="") {
   const theCommand = Object.keys(command)[0];
   let theValue = command[theCommand];
   debug("c: "+theCommand);
@@ -200,6 +200,28 @@ async function handleCommand(page, command, input, results=[]) {
     return undefined;
   }
 
+  if (theCommand === "expectChange") {
+    const params = getArgs(theValue, 1);
+    const waiting = await page.$eval(params[0], e => e.textContent);
+    return {
+      waiting
+    };
+  }
+
+  if (theCommand === "waitForExpected") {
+    const params = getArgs(theValue, 1);
+    for (let i = 0; i < 15; i += 1) {
+      const waiting = await page.$eval(params[0], e => e.textContent);
+      debug("waiting value before: " + waitingForChange);
+      debug("waiting value now:"  + waiting);
+      if (waiting !== waitingForChange) {
+        return undefined;
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    throw new Error("Value did not change as expected");
+  }
+
   if (theCommand === "waitForNavigation") {
     await page.waitForNavigation();
     return undefined;
@@ -237,8 +259,47 @@ async function handleCommand(page, command, input, results=[]) {
     }
     let itemDef = {path, props};
     debug("attempting to retieve items with def: " + JSON.stringify(itemDef));
-    await page.waitForSelector(path);
-    const items = await page.$$eval(itemDef.path, retrieveItem, itemDef);
+
+    let items = [];
+    let lastPageCount = 0;
+    let pages = 0;
+
+    const pagesConfig = {
+      maxPages: 5,
+      steps: [],
+      ...theValue.pages
+    };
+
+    while (pages < pagesConfig.maxPages) {
+      await page.waitForSelector(path);
+      const pageItems = await page.$$eval(itemDef.path, retrieveItem, itemDef);
+      debug(`got ${pageItems.length} items`);
+
+      if ((pages === 0 && pageItems.length === 0) || (pageItems.length < lastPageCount) || pagesConfig.steps.length === 0) {
+        debug("should be done with pages")
+        break;
+      }
+      pages ++;
+      lastPageCount = pageItems.length;
+      items = items.concat(...pageItems);
+
+      debug("going to next page");
+      let waitingValue = "";
+      for (let i = 0; i < pagesConfig.steps.length; i += 1) {
+        try {
+          const result = await handleCommand(page, pagesConfig.steps[i], input, [], waitingValue);
+          if (result && result.waiting) {
+            waitingValue = result.waiting;
+            debug("storing waiting as :" + waitingValue);
+          }
+        }
+        catch (e) {
+          debug(e.toString());
+          debug("had an error on nextitem step");
+        }
+      }
+      debug(`finished page ${pages} of up to ${pagesConfig.maxPages}`);
+    }
     return {items};
   }
   if (theCommand === "distinct") {
