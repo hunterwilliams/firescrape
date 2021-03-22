@@ -160,14 +160,13 @@ function retrieveItem(arrayOfItems, itemDef) {
   });
 }
 
-async function handleCommand(page, command, input, results=[], waitingForChange="") {
+async function handleCommand(page, command, input, results=[], waitingForChange="", pageNumber="") {
   const theCommand = Object.keys(command)[0];
   let theValue = command[theCommand];
   debug("c: "+theCommand);
 
   function getArgs(value, numberRequired){
-    let values = value.replace("$INPUT", input).split('"').filter(x => x !== "");
-  
+    let values = typeof value === "string" ? value.replace("$INPUT", input).replace("$PAGE", pageNumber).split('"').filter(x => x !== "") : value;
     if (values.length < numberRequired) {
       throw new Error(`Could not find ${numberRequired} params`);
     }
@@ -192,8 +191,9 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
   }
 
   if (theCommand === "screenshot") {
+    const path = getArgs(theValue.path || './screenshot.jpg', 0)[0];
     await page.screenshot({
-      path: theValue.path || "./screenshot.jpg",
+      path,
       type: "jpeg",
       fullPage: false
     });
@@ -208,6 +208,20 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
     };
   }
 
+  if (theCommand === "checkPageOrLoop") {
+    const params = getArgs(theValue, 1);
+    const currentPage = await page.$eval(params[0], e => e.textContent);
+    return {
+      currentPage: parseInt(currentPage.trim().replace(/\D/g,''))
+    };
+  }
+
+  if (theCommand === "wait") {
+    const params = getArgs(theValue, 1);
+    await new Promise(r => setTimeout(r, params[0]));
+    return undefined;
+  }
+
   if (theCommand === "waitForExpected") {
     const params = getArgs(theValue, 1);
     for (let i = 0; i < 15; i += 1) {
@@ -220,6 +234,12 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
       await new Promise(r => setTimeout(r, 1000));
     }
     throw new Error("Value did not change as expected");
+  }
+
+  if (theCommand === "waitForHiding") {
+    const params = getArgs(theValue, 1);
+    await page.waitForSelector(params[0], {hidden:true});
+    return undefined;
   }
 
   if (theCommand === "waitForNavigation") {
@@ -262,7 +282,7 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
 
     let items = [];
     let lastPageCount = 0;
-    let pages = 0;
+    let pages = 1;
 
     const pagesConfig = {
       maxPages: 5,
@@ -270,35 +290,58 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
       ...theValue.pages
     };
 
-    while (pages < pagesConfig.maxPages) {
+    while (pages <= pagesConfig.maxPages) {
       await page.waitForSelector(path);
       const pageItems = await page.$$eval(itemDef.path, retrieveItem, itemDef);
       debug(`got ${pageItems.length} items`);
 
-      if ((pages === 0 && pageItems.length === 0) || (pageItems.length < lastPageCount) || pagesConfig.steps.length === 0) {
+      if ((pages === 1 && pageItems.length === 0) || (pageItems.length < lastPageCount) || pagesConfig.steps.length === 0) {
         debug("should be done with pages")
         break;
       }
-      pages ++;
       lastPageCount = pageItems.length;
       items = items.concat(...pageItems);
 
-      debug("going to next page");
+      
       let waitingValue = "";
-      for (let i = 0; i < pagesConfig.steps.length; i += 1) {
-        try {
-          const result = await handleCommand(page, pagesConfig.steps[i], input, [], waitingValue);
-          if (result && result.waiting) {
-            waitingValue = result.waiting;
-            debug("storing waiting as :" + waitingValue);
+      let resetSteps = 0;
+      if (pages < pagesConfig.maxPages) {
+        debug("going to next page");
+        const expectedPage = pages + 1;
+        for (let i = 0; i < pagesConfig.steps.length; i += 1) {
+          try {
+            const result = await handleCommand(page, pagesConfig.steps[i], input, [], waitingValue, expectedPage);
+            if (result && result.waiting) {
+              waitingValue = result.waiting;
+              debug("storing waiting as :" + waitingValue);
+            }
+            if (result && result.currentPage) {
+              if (result.currentPage === expectedPage) {
+                debug("arrived to next page");
+              }
+              else if (result.currentPage !== expectedPage && resetSteps < 10) {
+                debug(`attempt ${resetSteps} to get to the next page`);
+                debug("currentPage is:" + result.currentPage);
+                debug("expected page is: "+ (expectedPage));
+                debug("-------------------------------------");
+                await new Promise(r => setTimeout(r, resetSteps * 100 + 100));
+                i = -1;
+                resetSteps++;
+              } else {
+                debug("couldn't go to next page");
+              }
+            }
+          }
+          catch (e) {
+            debug(e.toString());
+            debug("had an error on nextitem step");
           }
         }
-        catch (e) {
-          debug(e.toString());
-          debug("had an error on nextitem step");
-        }
+      } else {
+        debug("stopping pages");
       }
       debug(`finished page ${pages} of up to ${pagesConfig.maxPages}`);
+      pages ++;
     }
     return {items};
   }
