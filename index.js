@@ -1,12 +1,15 @@
 const puppeteer = require('puppeteer');
+const exportAs = require('./exportAs');
 const helpers = require('./helpers');
+const DEBUG_FLAG = "--debug";
 
 if (process.argv.length < 3) {
   throw new Error('Expected at least 1 arguments: script.fscript "input"');
 }
 const fileToRun = process.argv[2];
 const input = process.argv[3] || "";
-const shouldDebug = process.argv[process.argv.length - 1] === "--debug";
+const output = process.argv[4] || "";
+const shouldDebug = process.argv[process.argv.length - 1] === DEBUG_FLAG;
 
 (async () => {
 
@@ -49,6 +52,20 @@ const shouldDebug = process.argv[process.argv.length - 1] === "--debug";
   }
 
   console.log("--------------Results-------------------");
-  console.log(results.map(x => x.value));
+  const dataToShow = results.map(x => x.value);
+  console.log(dataToShow);
   console.log("------------End of Results--------------");
+
+  if (output !== "" && output !== DEBUG_FLAG) {
+    console.log("Attempting to save: " + output);
+    if (output.endsWith(".json")) {
+      exportAs.jsonFile(output, dataToShow);
+    } else if (output.endsWith(".csv")) {
+      exportAs.csvFile(output, dataToShow);
+    } else {
+      console.log("Unsupported export format");
+    }
+  } else {
+    console.log("No output saved");
+  }
 })();
