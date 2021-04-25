@@ -147,13 +147,36 @@ function retrieveItem(arrayOfItems, itemDef) {
 
   return arrayOfItems.map(currentElement => {
     let currentItem =  {value: {}, error: {}};
+    let elementToUse = currentElement;
+    function handleStepCommand(commandObj) {
+      const command = commandObj.command;
+      const value = commandObj.value;
+      console.log("handle step: " + command);
+      if (command === "click") {
+        const elementToClick = elementToUse.querySelector(value);
+        console.log("going to try to click: " + elementToClick);
+        elementToClick.click();
+      } else if (command === "useAsItem") {
+        elementToUse = window.document.querySelector(value);
+        console.log("new element to use:" + elementToUse);
+      }
+    }
+    console.log("before steps");
+    for (let i = 0; i < itemDef.beforeSteps.length; i += 1) {
+      handleStepCommand(itemDef.beforeSteps[i]);
+    }
+    console.log("getting item");
     for (let i = 0; i < itemDef.props.length; i += 1) {
       const currentProp = itemDef.props[i];
       const currentPropName = currentProp.property;
       // get each property recursively!
-      const subcommandResults = handleSubcommand(currentElement, currentProp.path, currentProp.subcommand);
+      const subcommandResults = handleSubcommand(elementToUse, currentProp.path, currentProp.subcommand);
       currentItem.value[currentPropName] = subcommandResults.value;
       currentItem.error[currentPropName] = subcommandResults.error;
+    }
+    console.log("after stpes");
+    for (let i = 0; i < itemDef.afterSteps.length; i += 1) {
+      handleStepCommand(itemDef.afterSteps[i]);
     }
 
     return currentItem;
@@ -277,7 +300,25 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
         path: params[1],
       });
     }
-    let itemDef = {path, props};
+    const beforeSteps = [];
+    const itemBefore = theValue.beforeSteps || [];
+    for (let j = 0; j < itemBefore.length; j ++) {
+      const key = Object.keys(itemBefore[j])[0];
+      beforeSteps.push({
+        command: key,
+        value: getArgs(itemBefore[j][key])[0]
+      });
+    }
+    const afterSteps = [];
+    const itemAfter = theValue.afterSteps || [];
+    for (let j = 0; j < itemAfter.length; j ++) {
+      const key = Object.keys(itemAfter[j])[0];
+      afterSteps.push({
+        command: key,
+        value: getArgs(itemAfter[j][key])[0]
+      });
+    }
+    let itemDef = {path, props, beforeSteps, afterSteps};
     debug("attempting to retieve items with def: " + JSON.stringify(itemDef));
 
     let items = [];
