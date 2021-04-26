@@ -1,0 +1,7 @@
+version: '3'
+services:
+  db:
+    image: redis:6
+    ports:
+      - "6379:6379"
+    container_name: firescrape_db

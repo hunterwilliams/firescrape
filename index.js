@@ -19,6 +19,7 @@ const actualArgs = process.argv.filter(x => [DEBUG_FLAG, SERVER_FLAG].indexOf(x)
 if (runAsServer) {
   console.log("Running as server");
   const express = require('express');
+  const queue = require('./queue/main');
   const fs = require('fs');
   const PORT = process.env.PORT || 5000;
   express()
@@ -28,27 +29,51 @@ if (runAsServer) {
     next();
   })
   .post('/scrape', async (req, res, next) => {
-    const hrstart = process.hrtime()
+    const hrstart = process.hrtime();
+    const cleanup = () => {
+      const hrend = process.hrtime(hrstart);
+      const timing = `Execution time (hr): ${hrend[0]}s ${hrend[1] / 1000000}ms`;
+      console.log(timing);
+      next();
+    }
     const script = req.body.script;
     const input = req.body.input || "";
     const outputType = req.body.outputType || "";
     const callbackUrl = req.body.callbackUrl;
     if (!script || (outputType !== "" && outputType !== "json" && outputType !== "csv") || !callbackUrl) {
-      res.send("400");
+      res.status(400);
+      cleanup();
     } else {
       if (!fs.existsSync(script)) {
-        res.send("404");
+        res.status(404);
+        cleanup();
       } else {
-        res.send("200");
+        const jobDetails = {
+          input, outputType, callbackUrl, script
+        };
+        queue.createJob(jobDetails).then((job) => {
+          res.status(201);
+          res.send({
+            jobDetails,
+            id: job.id,
+          });
+        }).catch(e => {
+          res.status(500);
+          console.log("error during job creation");
+          console.log(e);
+        }).finally(() => {
+          cleanup();
+        });
       }
     }
-    const hrend = process.hrtime(hrstart);
-    const timing = `Execution time (hr): ${hrend[0]}s ${hrend[1] / 1000000}ms`;
-    console.log(timing);
-    next();
   })
-  .listen(PORT, () => console.log(`Listening on ${ PORT }`))
-
+  .listen(PORT, () => console.log(`Listening on ${ PORT }`));
+  
+  queue.jobQueue.process(1, (job, done) => {
+    console.log("handling job with id: " + job.id);
+    console.log("job data: ", job.data);
+    done();
+  });
 
 } else {
   if (process.argv.length < 3) {
