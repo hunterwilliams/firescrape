@@ -1,9 +1,8 @@
 const puppeteer = require('puppeteer');
-const exportAs = require('./exportAs');
 const helpers = require('./helpers');
 
-async function run(fileToRun, input, output, shouldDebug) {
-  console.log(fileToRun, input, output, shouldDebug);
+async function run(fileToRun, input, shouldDebug, cleanOutput) {
+  console.log(fileToRun, input, shouldDebug, cleanOutput);
 
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
@@ -11,12 +10,6 @@ async function run(fileToRun, input, output, shouldDebug) {
   const scraper = helpers.fscriptify(fileToRun, shouldDebug);
 
   const results = await scraper(page, input);
-
-  await page.screenshot({
-    path: "./screenshot.jpg",
-    type: "jpeg",
-    fullPage: true
-  });
 
   await browser.close();
 
@@ -34,29 +27,17 @@ async function run(fileToRun, input, output, shouldDebug) {
   if (hasError !== false) {
     console.log("Results have some error...");
     console.log(hasError);
-    console.log("--------------------------------");
-    console.log("--------Results With Error------");
-    console.log(results);
-    console.log("----End of Results With Error---");
-  }
-
-  console.log("--------------Results-------------------");
-  const dataToShow = results.map(x => x.value);
-  console.log(dataToShow);
-  console.log("------------End of Results--------------");
-
-  if (output !== "") {
-    console.log("Attempting to save: " + output);
-    if (output.endsWith(".json")) {
-      exportAs.jsonFile(output, dataToShow);
-    } else if (output.endsWith(".csv")) {
-      exportAs.csvFile(output, dataToShow);
-    } else {
-      console.log("Unsupported export format");
+    if (shouldDebug) {
+      console.log("--------------------------------");
+      console.log("--------Results With Error------");
+      console.log(results);
+      console.log("----End of Results With Error---");
     }
-  } else {
-    console.log("No output saved");
   }
+
+  const dataToShow = cleanOutput ? results.map(x => x.value) : results;
+
+  return dataToShow;
 }
 
 exports.run = run;

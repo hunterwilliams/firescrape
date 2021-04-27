@@ -19,6 +19,7 @@ const actualArgs = process.argv.filter(x => [DEBUG_FLAG, SERVER_FLAG].indexOf(x)
 if (runAsServer) {
   console.log("Running as server");
   const express = require('express');
+  const tiny = require('tiny-json-http');
   const queue = require('./queue/main');
   const fs = require('fs');
   const PORT = process.env.PORT || 5000;
@@ -26,6 +27,10 @@ if (runAsServer) {
   .use(express.json())
   .post('/test', async (req, res, next) => {
     res.send(req.body);
+    console.log("=======================================================")
+    console.log("got a request")
+    console.log(req.body);
+    console.log("==============end of logged request====================")
     next();
   })
   .post('/scrape', async (req, res, next) => {
@@ -38,9 +43,8 @@ if (runAsServer) {
     }
     const script = req.body.script;
     const input = req.body.input || "";
-    const outputType = req.body.outputType || "";
     const callbackUrl = req.body.callbackUrl;
-    if (!script || (outputType !== "" && outputType !== "json" && outputType !== "csv") || !callbackUrl) {
+    if (!script || !callbackUrl) {
       res.status(400);
       cleanup();
     } else {
@@ -49,7 +53,7 @@ if (runAsServer) {
         cleanup();
       } else {
         const jobDetails = {
-          input, outputType, callbackUrl, script
+          input, callbackUrl, script
         };
         queue.createJob(jobDetails).then((job) => {
           res.status(201);
@@ -70,21 +74,52 @@ if (runAsServer) {
   .listen(PORT, () => console.log(`Listening on ${ PORT }`));
   
   queue.jobQueue.process(1, (job, done) => {
-    console.log("handling job with id: " + job.id);
-    console.log("job data: ", job.data);
-    done();
+    if (shouldDebug) {
+      console.log("handling job with id: " + job.id);
+      console.log("job data: ", job.data);
+    }
+    
+    const {input, callbackUrl, script} = job.data;
+    run(script, input, shouldDebug, true).then((dataToShow) => {
+      const tinyConfig = {url:callbackUrl, data:dataToShow};
+      tiny.post(tinyConfig, function posted(err, _result) {
+        if (err) {
+          console.log("Had an error posting: ", err);
+        }
+        else if (shouldDebug) {
+          console.log("sent data");
+        }
+        done();
+      });
+    });
   });
 
 } else {
+  const exportAs = require('./exportAs');
   if (process.argv.length < 3) {
     throw new Error('Expected at least 1 arguments: script.fscript "input"');
   }
   console.log("Executing command");
-  const fileToRun = actualArgs[2];
+  const script = actualArgs[2];
   const input = actualArgs[3] || "";
   const output = actualArgs[4] || "";
 
   (async () => {
-    run(fileToRun, input, output, shouldDebug)
+    run(script, input, shouldDebug, true).then((dataToShow) => {
+      if (output !== "") {
+        console.log("Attempting to save: " + output);
+        if (output.endsWith(".json")) {
+          exportAs.jsonFile(output, dataToShow);
+        } else if (output.endsWith(".csv")) {
+          exportAs.csvFile(output, dataToShow);
+        } else {
+          console.log("Unsupported export format");
+        }
+      } else {
+        console.log("----Will not save------");
+        console.log(dataToShow);
+        console.log("No output saved");
+      }
+    });
   })();
 }
