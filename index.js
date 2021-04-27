@@ -1,6 +1,7 @@
 const run = require('./runner').run;
 const DEBUG_FLAG = "--debug";
 const SERVER_FLAG = "--server";
+const WITH_ERRORS_FLAG = "--show-errors";
 
 function containsFlag(flag) {
   for (let i = 0; i < process.argv.length; i++) {
@@ -13,7 +14,8 @@ function containsFlag(flag) {
 
 const shouldDebug = containsFlag(DEBUG_FLAG);
 const runAsServer = containsFlag(SERVER_FLAG);
-const actualArgs = process.argv.filter(x => [DEBUG_FLAG, SERVER_FLAG].indexOf(x) === -1);
+const withErrors = containsFlag(WITH_ERRORS_FLAG);
+const actualArgs = process.argv.filter(x => [DEBUG_FLAG, SERVER_FLAG, WITH_ERRORS_FLAG].indexOf(x) === -1);
 
 if (runAsServer) {
   console.log('Running as server');
@@ -79,7 +81,7 @@ if (runAsServer) {
     }
     
     const {input, callbackUrl, script} = job.data;
-    run(script, input, shouldDebug, true).then((dataToShow) => {
+    run(script, input, shouldDebug, withErrors).then((dataToShow) => {
       const tinyConfig = {url:callbackUrl, data:dataToShow};
       tiny.post(tinyConfig, function posted(err, _result) {
         if (err) {
@@ -104,7 +106,7 @@ if (runAsServer) {
   const output = actualArgs[4] || '';
 
   (async () => {
-    run(script, input, shouldDebug, true).then((dataToShow) => {
+    run(script, input, shouldDebug, withErrors).then((dataToShow) => {
       if (output !== '') {
         console.log('Attempting to save: ' + output);
         if (output.endsWith('.json')) {

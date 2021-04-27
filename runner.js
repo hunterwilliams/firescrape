@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const helpers = require('./helpers');
 
-async function run(fileToRun, input, shouldDebug, cleanOutput) {
+async function run(fileToRun, input, shouldDebug, showErrors) {
 
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
@@ -34,7 +34,7 @@ async function run(fileToRun, input, shouldDebug, cleanOutput) {
     }
   }
 
-  const dataToShow = cleanOutput ? results.map(x => x.value) : results;
+  const dataToShow = showErrors ? results : results.map(x => x.value);
 
   return dataToShow;
 }
