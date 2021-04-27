@@ -2,7 +2,6 @@ const puppeteer = require('puppeteer');
 const helpers = require('./helpers');
 
 async function run(fileToRun, input, shouldDebug, cleanOutput) {
-  console.log(fileToRun, input, shouldDebug, cleanOutput);
 
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
