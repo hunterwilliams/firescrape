@@ -15,9 +15,8 @@ const shouldDebug = containsFlag(DEBUG_FLAG);
 const runAsServer = containsFlag(SERVER_FLAG);
 const actualArgs = process.argv.filter(x => [DEBUG_FLAG, SERVER_FLAG].indexOf(x) === -1);
 
-
 if (runAsServer) {
-  console.log("Running as server");
+  console.log('Running as server');
   const express = require('express');
   const tiny = require('tiny-json-http');
   const queue = require('./queue/main');
@@ -27,10 +26,10 @@ if (runAsServer) {
   .use(express.json())
   .post('/test', async (req, res, next) => {
     res.send(req.body);
-    console.log("=======================================================")
-    console.log("got a request")
+    console.log('==============start of logged request==================')
+    console.log('got a request')
     console.log(req.body);
-    console.log("==============end of logged request====================")
+    console.log('==============end of logged request====================')
     next();
   })
   .post('/scrape', async (req, res, next) => {
@@ -42,7 +41,7 @@ if (runAsServer) {
       next();
     }
     const script = req.body.script;
-    const input = req.body.input || "";
+    const input = req.body.input || '';
     const callbackUrl = req.body.callbackUrl;
     if (!script || !callbackUrl) {
       res.status(400);
@@ -63,7 +62,7 @@ if (runAsServer) {
           });
         }).catch(e => {
           res.status(500);
-          console.log("error during job creation");
+          console.log('error during job creation');
           console.log(e);
         }).finally(() => {
           cleanup();
@@ -75,8 +74,8 @@ if (runAsServer) {
   
   queue.jobQueue.process(1, (job, done) => {
     if (shouldDebug) {
-      console.log("handling job with id: " + job.id);
-      console.log("job data: ", job.data);
+      console.log('handling job with id: ' + job.id);
+      console.log('job data: ', job.data);
     }
     
     const {input, callbackUrl, script} = job.data;
@@ -84,10 +83,10 @@ if (runAsServer) {
       const tinyConfig = {url:callbackUrl, data:dataToShow};
       tiny.post(tinyConfig, function posted(err, _result) {
         if (err) {
-          console.log("Had an error posting: ", err);
+          console.log('Had an error posting: ', err);
         }
         else if (shouldDebug) {
-          console.log("sent data");
+          console.log('sent data');
         }
         done();
       });
@@ -99,26 +98,26 @@ if (runAsServer) {
   if (process.argv.length < 3) {
     throw new Error('Expected at least 1 arguments: script.fscript "input"');
   }
-  console.log("Executing command");
+  console.log('Executing command');
   const script = actualArgs[2];
-  const input = actualArgs[3] || "";
-  const output = actualArgs[4] || "";
+  const input = actualArgs[3] || '';
+  const output = actualArgs[4] || '';
 
   (async () => {
     run(script, input, shouldDebug, true).then((dataToShow) => {
-      if (output !== "") {
-        console.log("Attempting to save: " + output);
-        if (output.endsWith(".json")) {
+      if (output !== '') {
+        console.log('Attempting to save: ' + output);
+        if (output.endsWith('.json')) {
           exportAs.jsonFile(output, dataToShow);
-        } else if (output.endsWith(".csv")) {
+        } else if (output.endsWith('.csv')) {
           exportAs.csvFile(output, dataToShow);
         } else {
-          console.log("Unsupported export format");
+          console.log('Unsupported export format');
         }
       } else {
-        console.log("----Will not save------");
+        console.log('----Will not save------');
         console.log(dataToShow);
-        console.log("No output saved");
+        console.log('No output saved');
       }
     });
   })();
