@@ -336,13 +336,13 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
       const pageItems = await page.$$eval(itemDef.path, retrieveItem, itemDef);
       debug(`got ${pageItems.length} items`);
 
+      items = items.concat(...pageItems);
+
       if ((pages === 1 && pageItems.length === 0) || (pageItems.length < lastPageCount) || pagesConfig.steps.length === 0) {
         debug("should be done with pages")
         break;
       }
       lastPageCount = pageItems.length;
-      items = items.concat(...pageItems);
-
       
       let waitingValue = "";
       let resetSteps = 0;
