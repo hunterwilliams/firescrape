@@ -1,0 +1,60 @@
+overall:
+  - script: &google
+      steps: 
+        - viewport:
+            height: 800
+            width: 1280
+        - type:
+            value: "duck"
+            path: "form input[type='text']"
+        - screenshot:
+            path: "google-ready-to-search.jpg"
+        - click: "form input[type='submit']"
+        - waitForNavigation:
+        - screenshot:
+            path: "google-results.jpg"
+        - item:
+            path: "#search .g"
+            properties: 
+              - name: textOf "h3"
+              - link: hrefOf "a"
+
+  - script: &duckduckgo
+      steps: 
+        - viewport:
+            height: 800
+            width: 1280
+        - type:
+            value: "duck"
+            path: ".search_form_input_homepage"
+        - screenshot:
+            path: "duckduckgo-ready-to-search.jpg"
+        - click: "#search_button_homepage"
+        - waitForNavigation:
+        - screenshot:
+            path: "duckduckgo-results.jpg"
+        - item:
+            path: ".results.js-results .result"
+            properties: 
+              - name: textOf ".js-result-title a"
+              - link: hrefOf ".js-result-title a"
+  - identify: 
+      steps: 
+        - viewport:
+            height: 800
+            width: 1280
+        - open: "$INPUT"
+        - identify:
+            output: supportedSite
+            cases:
+              - case:
+                  value: "duckduckgo"
+                  elementExists: ".search_form_input_homepage"
+                  run: *duckduckgo
+              - case:
+                  value: "google"
+                  elementExists: "form input[type='text']" 
+                  run: *google
+              - default:
+                  value: "none"
+  
