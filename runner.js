@@ -8,7 +8,8 @@ async function run(fileToRun, input, shouldDebug, showErrors) {
 
   const scraper = helpers.fscriptify(fileToRun, shouldDebug);
 
-  const results = await scraper(page, input);
+  const scraperResults = await scraper(page, input);
+  const results = scraperResults.results;
 
   await browser.close();
 
@@ -31,10 +32,13 @@ async function run(fileToRun, input, shouldDebug, showErrors) {
       console.log("--------Results With Error------");
       console.log(results);
       console.log("----End of Results With Error---");
+      console.log("--------Meta---------------------");
+      console.log(scraperResults.meta);
+      console.log("--------End of Meta--------------");
     }
   }
 
-  const dataToShow = showErrors ? results : results.map(x => x.value);
+  const dataToShow = showErrors ? scraperResults : results.map(x => x.value);
 
   return dataToShow;
 }

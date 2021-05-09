@@ -424,6 +424,39 @@ async function handleCommand(page, command, input, results=[], waitingForChange=
     debug("other script results");
     return {results: otherScriptResults};
   }
+  if (theCommand === "identify") {
+    let returnResult = {};
+    let identifyValue = false;
+    returnResult.steps = false;
+    for (let i = 0; i < theValue.cases.length; i++) {
+      if (theValue.cases[i].default) {
+        debug("on default case");
+        identifyValue = theValue.cases[i].default.value;
+        returnResult.steps = theValue.cases[i].default.run;
+        break;
+      } else {
+        if (theValue.cases[i].case.elementExists) {
+          try {
+            await page.waitForSelector(theValue.cases[i].case.elementExists, { timeout: 5000 })
+            debug("case success for " + theValue.cases[i].case.value + " having " + theValue.cases[i].case.elementExists);
+            identifyValue = theValue.cases[i].case.value;
+            returnResult.steps = theValue.cases[i].case.run;
+            break;
+          } catch (error) {
+            debug("case failed for " + theValue.cases[i].case.value + " having " + theValue.cases[i].case.elementExists);
+          }
+        }
+      }
+    }
+    if (theValue.output) {
+      debug("will save output and save as " + theValue.output);
+      returnResult.output = {
+        outputLabel: theValue.output,
+        outputValue: identifyValue
+      };
+    }
+    return {results: returnResult};
+  }
   throw new Error("Unsupported command: " + theCommand);
 
 }
@@ -433,30 +466,71 @@ function fscriptify(scriptFilePath, shouldDebug=false) {
   return async function(page, input) {
     const doc = yaml.load(fs.readFileSync(scriptFilePath, 'utf8'));
 
-    let items = [];
-    let results = [];
-    for (let i = 0; i < doc.script.steps.length; i++) {
-      const step = doc.script.steps[i];
-      try {
-        const result = await handleCommand(page, step, input, results);
-        if (result && result.results) {
-          results = result.results;
-          debug("setting results");
+    let scripts = [];
+    let identify = false;
+    if (doc.overall) {
+      for (let i = 0; i < doc.overall.length; i ++) {
+        const nameOfKey = Object.keys(doc.overall[i])[0];
+        if (nameOfKey === "script") {
+          scripts.push(doc.overall[i].script)
+        } else if (nameOfKey === "identify") {
+          identify = doc.overall[i].identify;
         }
-        if (result && result.items) {
-          items = items.concat(result.items);
-        }
-      } catch (e) {
-        console.log(step);
-        console.log(e);
       }
-      
+    } else if (doc.script) {
+      scripts.push(doc.script);
     }
-    if (items.length === 0)
-    {
-      return results;
+
+    async function handleScript(script) {
+      let items = [];
+      let results = [];
+
+      for (let i = 0; i < script.steps.length; i++) {
+        const step = script.steps[i];
+        try {
+          const result = await handleCommand(page, step, input, results);
+          if (result && result.results) {
+            results = result.results;
+            debug("setting results");
+          }
+          if (result && result.items) {
+            items = items.concat(result.items);
+          }
+        } catch (e) {
+          console.log(step);
+          console.log(e);
+        }
+      }
+
+      if (items.length === 0)
+      {
+        return results;
+      }
+      return items;
     }
-    return items;
+
+    if (!identify) {
+      if (scripts.length === 1) {
+        const results = await handleScript(scripts[0]);
+        return {results: results, meta: {}};
+      } else {
+        console.log("Too many scripts - cannot pick 1");
+        return {results:[], meta: {}};
+      }
+    } else {
+      const identifyResults = await handleScript(identify);
+      let outputObject = {};
+      if (identifyResults.output) {
+        outputObject[identifyResults.output.outputLabel] = identifyResults.output.outputValue;
+      }
+      if (!identifyResults.steps) {
+        return {results:[], meta:{...outputObject}};
+      } else {
+        const results = await handleScript(identifyResults.steps);
+        return {results:results, meta:{...outputObject}};
+      }
+    }
+    
   };
 
 }
