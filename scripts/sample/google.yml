@@ -1,0 +1,21 @@
+script: 
+  steps: 
+    - viewport:
+        height: 800
+        width: 1280
+    - open: "https://www.google.com"
+    - type:
+        value: "$INPUT"
+        path: "form input[type='text']"
+    - screenshot:
+        path: "google-ready-to-search.jpg"
+    - click: "form input[type='submit']"
+    - waitForNavigation:
+    - screenshot:
+        path: "google-results.jpg"
+    - item:
+        path: "#search .g"
+        properties: 
+          - name: textOf "h3"
+          - link: hrefOf "a"
+
