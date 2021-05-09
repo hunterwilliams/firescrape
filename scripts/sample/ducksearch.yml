@@ -26,7 +26,7 @@ overall:
             width: 1280
         - type:
             value: "duck"
-            path: ".search_form_input_homepage"
+            path: "#search_form_input_homepage"
         - screenshot:
             path: "duckduckgo-ready-to-search.jpg"
         - click: "#search_button_homepage"
@@ -44,12 +44,14 @@ overall:
             height: 800
             width: 1280
         - open: "$INPUT"
+        - screenshot:
+            path: "identify.jpg"
         - identify:
             output: supportedSite
             cases:
               - case:
                   value: "duckduckgo"
-                  elementExists: ".search_form_input_homepage"
+                  elementExists: "#search_form_input_homepage"
                   run: *duckduckgo
               - case:
                   value: "google"
