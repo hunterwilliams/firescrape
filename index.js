@@ -112,7 +112,11 @@ if (runAsServer) {
         if (output.endsWith('.json')) {
           exportAs.jsonFile(output, dataToShow);
         } else if (output.endsWith('.csv')) {
-          exportAs.csvFile(output, dataToShow);
+          if (withErrors) {
+            console.log(`CSV export with flag ${WITH_ERRORS_FLAG} not supported`);
+          } else {
+            exportAs.csvFile(output, dataToShow);
+          }
         } else {
           console.log('Unsupported export format');
         }
