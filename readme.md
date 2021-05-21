@@ -16,7 +16,11 @@ Running the project
 
 **Usual Method**
 
-node index.js *path/script.yml* *(optional)input* *(optional)output.csv | output.json* *(optional) flags*
+node index.js *path/script.yml* {*(optional)input*} {*(optional)output.csv | output.json*} {*(optional) flags*}
+
+ex.
+
+``node index.js scripts/sample/google.yml "test search" results.json --show-errors``
 
 **Flags**
 
