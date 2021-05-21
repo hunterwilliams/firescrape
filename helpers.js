@@ -70,7 +70,18 @@ function retrieveItem(arrayOfItems, itemDef) {
           newError = e.toString();
         }
       }
-    } else if (currentCommand === "titleOf") {
+    } else if (currentCommand === "srcOf") {
+      if (currentValue) {
+        newError = "Cannot get srcOf existing values..."
+      } else {
+        try {
+          newValue = element.querySelector(path).getAttribute("src");
+        } catch (e) {
+          newValue = "";
+          newError = e.toString();
+        }
+      }
+    }else if (currentCommand === "titleOf") {
       if (currentValue) {
         newError = "Cannot get titleOf existing values..."
       } else {

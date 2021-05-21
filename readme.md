@@ -40,6 +40,7 @@ These exist to take data from something in the html and make it make sense
 
 * allOf                       | returns the trimmed text value of all matching elements
 * hrefOf                      | gets href attribute of an element
+* srcOf                       | gets src attribute of an element
 * maxOf                       | returns Math.max of an array
 * numbersOf                   | gets number value of an element (removes non digits) OR changes anything into numbers if possible
 * textOf                      | gets trimmed text value of an element  OR changes anything into text if possible
