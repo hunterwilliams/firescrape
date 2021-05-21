@@ -1,15 +1,38 @@
-Supported Commands
---------------------------
+Firescrape
+=========================
 
-* item "selector"             | starts item; items are found at selector
-* enditem                     | ends item;
-* click "selector"            | clicks selector
-* open "url"                  | opens url
-* type "text" "selector"      | types text into selector
-* waitForNavigation           | wait until the page changes; useful for searches
+This projects aims to make data collection across different websites and platforms easy for anyone.
 
-Subcommands
---------------------------
+It currently enables scraping in two methods:
+* A command line tool - run scripts directly from your device
+* REST API Server - run scripts on demand and with web post functionality
+
+
+This project runs "scripts" which are instructions on how to scrape a website into usable data known as "items".
+
+
+Running the project
+------------------------
+
+**Usual Method**
+
+node index.js *path/script.yml* *(optional)input* *(optional)output.csv | output.json* *(optional) flags*
+
+**Flags**
+
+* *--server*      | Run the project in REST API Server mode
+* *--show-errors* | Shows errors that occurred when making "items"
+* *--debug*       | will print out debug information; useful for bug catching or making changes to this project
+
+Items
+-------------------------
+
+Contain the defintion of how data should look like. 
+
+
+*Subcommands*
+
+These exist to take data from something in the html and make it make sense
 
 * allOf                       | returns the trimmed text value of all matching elements
 * hrefOf                      | gets href attribute of an element
@@ -22,27 +45,25 @@ Subcommands
 * valueOf                     | gets the value of something; useful for select
 
 
-Example
-------------------
+Script Structure
+--------------------------
 
-```
-item ".product"
-  .name textOf "h6"
-  .link hrefOf "h6 a"
-  .set textOf ".small .row"
-  .price numbersOf textNodeOf ".card-form p"
-  .quantity numbersOf valueOf ".card-form select"
-enditem
-```
+Scripts contain ways to "scrape" a particular website and fit the data into a clear object
+
+See scripts/sample for now. 
 
 
 
-TODO:
+Future
+--------------------------
 
-* Support nextpage for going through pages of results - needs to support clicking (maybe more?)
-* Taking input from a file
+* Allow nextpage of results to work 100%
+* Taking "more" input such as from a file
 * Some sort of filtering / comparison / unique (maybe similar to SQL)
 * Handling browser crashes / fails to initialize
 * attribute("X")
 * calling other script from file OR nesting
 * some sort of transformation eg for price and for partial links (partial links should be extract?? as this seems obvious issue)
+* breakpoints (some way to pause/continue giant scraping jobs)
+* solve issue with angular html element names
+* remove the waitForSelector command (this one sucks for users to deal with)
